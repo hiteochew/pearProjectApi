@@ -47,7 +47,7 @@ class CommonModel extends Model
      * @return array
      * @throws \think\exception\DbException
      */
-    public function _list($where = null, $order = 'id desc', $field = null, $simple = false, $config = [])
+    public function _list($where = null, $order = 'id desc', $field = null, $simple = false, $config = [], $with = false)
     {
         $rows = intval(Request::param('pageSize', cookie('pageSize')));
         if (!$rows) {
@@ -66,7 +66,12 @@ class CommonModel extends Model
             $whereOr = $where['or'];
             unset($where['or']);
         }
-        $page = $this->where($where)->whereOr($whereOr)->order($order)->field($field)->paginate($rows, $simple, $config);
+        if ($with) {
+            $sqlobj = isset($with['haswhere']) ? $this->haswhere($with['haswhere']['key'], $with['haswhere']['where']) : $this;
+            $page = $sqlobj->with(isset($with['with']) ? $with['with'] : [])->where($where)->whereOr($whereOr)->order($order)->field($field)->paginate($rows, $simple, $config);
+        } else {
+            $page = $this->where($where)->whereOr($whereOr)->order($order)->field($field)->paginate($rows, $simple, $config);
+        }
         $list = $page->all();
         $result = ['total' => $simple ? count($list) : $page->total(), 'page' => $page->currentPage(), 'list' => $list];
         return $result;
@@ -135,8 +140,8 @@ class CommonModel extends Model
         $info = $file->move($path);
         if ($info) {
             $filename = str_replace('\\', '/', $path . '/' . $info->getSaveName());
-//            $image = \think\Image::open($info->getRealPath());
-//            $image->thumb($image->width() / 2, $image->height() / 2)->save($filename);//压缩
+            //            $image = \think\Image::open($info->getRealPath());
+            //            $image->thumb($image->width() / 2, $image->height() / 2)->save($filename);//压缩
             $site_url = FileService::getFileUrl($filename, 'local');
             $fileInfo = FileService::save($filename, file_get_contents($site_url));
             if ($fileInfo) {
@@ -144,5 +149,21 @@ class CommonModel extends Model
             }
         }
         return false;
+    }
+
+    /**
+     * 删除文件
+     * @param $path_name
+     * @return array|bool
+     * @throws \OSS\Core\OssException
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
+     * @throws \Exception
+     */
+    public function _delfile($path_name = '')
+    {
+        if ($path_name) {
+            FileService::oss_del($path_name);
+        }
     }
 }

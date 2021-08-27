@@ -24,8 +24,8 @@ class Organization extends CommonModel
      */
     public static function createOrganization($memberData, $data = [])
     {
-        $defaultAdminAuthId = 3;//默认管理员权限id
-        $defaultMemberAuthId = 4;//默认成员权限id
+        $defaultAdminAuthId = 1;//默认管理员权限id
+        $defaultMemberAuthId = 2;//默认成员权限id
 
         if (!isset($data['name'])) {
             $data['name'] = $memberData['name'] . '的个人项目';
@@ -57,8 +57,8 @@ class Organization extends CommonModel
         }
 
         $memberAccountData = [
-            'position' => '资深工程师',
-            'department' => '某某公司－某某某事业群－某某平台部－某某技术部－BM',
+            'position' => '',
+            'department' => '',
             'code' => createUniqueCode('organization'),
             'member_code' => $memberData['code'],
             'organization_code' => $data['code'],

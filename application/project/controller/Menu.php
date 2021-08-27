@@ -16,6 +16,9 @@ class Menu extends BasicApi
     public function __construct()
     {
         parent::__construct();
+        if(getCurrentMember()['id']!==1){
+            return $this->error('无权限');
+        }
         if (!$this->model) {
             $this->model = new ProjectMenu;
         }

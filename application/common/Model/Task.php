@@ -21,6 +21,11 @@ class Task extends CommonModel
 {
     protected $append = ['priText', 'statusText', 'liked', 'stared', 'tags', 'childCount', 'hasUnDone', 'parentDone', 'hasComment', 'hasSource', 'canRead'];
 
+    public function organization()
+    {
+        return $this->hasOne('Project', 'code', 'project_code'); //->bind('organization_code');
+    }
+
     public function read($code)
     {
         if (!$code) {
@@ -30,7 +35,7 @@ class Task extends CommonModel
         if (!$task) {
             throw new Exception('该任务已失效', 404);
         }
-        $project = Project::where(['code' => $task['project_code']])->field('name,open_begin_time')->find();
+        $project = Project::where(['code' => $task['project_code']])->field('name,open_begin_time,organization_code')->find();
         $stage = TaskStages::where(['code' => $task['stage_code']])->field('name')->find();
         $task['executor'] = null;
         if ($task['assign_to']) {
@@ -52,6 +57,7 @@ class Task extends CommonModel
         }
         $task['openBeginTime'] = $project['open_begin_time'];
         $task['projectName'] = $project['name'];
+        $task['organizationCode'] = $project['organization_code'];
         $task['stageName'] = $stage['name'];
         //TODO 查看权限
         return $task;
@@ -294,7 +300,7 @@ class Task extends CommonModel
                     'name' => trim($taskTitle),
                 ];
                 $result = self::create($data);
-//                self::update(['sort' => $result['id']], ['id' => $result['id']]);
+                //                self::update(['sort' => $result['id']], ['id' => $result['id']]);
                 self::taskHook($memberCode, $data['code'], 'create');
                 if ($parentCode) {
                     self::taskHook($memberCode, $parentCode, 'createChild', '', '', 0, '', '', ['taskName' => trim($taskTitle)]);
@@ -306,7 +312,7 @@ class Task extends CommonModel
                         $isExecutor = 1;
                         $logType = 'claim';
                     }
-//                    Task::taskHook($memberCode, $data['code'], $logType, $assignTo);
+                    //                    Task::taskHook($memberCode, $data['code'], $logType, $assignTo);
                     TaskMember::inviteMember($assignTo, $data['code'], 1, $isExecutor);
                 }
                 if (!$assignTo || !$isExecutor) {
@@ -362,7 +368,6 @@ class Task extends CommonModel
                     $project->schedule = $schedule;
                     $project->save();
                 }
-
             }
             $projectAutoUpdateSchedule = 1;
         } catch (Exception $e) {
@@ -444,19 +449,19 @@ class Task extends CommonModel
         if (!$task) {
             throw new Exception('任务已失效', 2);
         }
-//        $data = [
-//            'member_code' => getCurrentMember()['code'],
-//            'source_code' => $taskCode,
-//            'action_type' => 'task',
-//            'code' => createUniqueCode('projectLog'),
-//            'create_time' => nowTime(),
-//            'is_comment' => 1,
-//            'content' => $comment,
-//            'type' => 'comment'
-//        ];
+        //        $data = [
+        //            'member_code' => getCurrentMember()['code'],
+        //            'source_code' => $taskCode,
+        //            'action_type' => 'task',
+        //            'code' => createUniqueCode('projectLog'),
+        //            'create_time' => nowTime(),
+        //            'is_comment' => 1,
+        //            'content' => $comment,
+        //            'type' => 'comment'
+        //        ];
         self::taskHook(getCurrentMember()['code'], $taskCode, 'comment', '', 1, '', $comment, '', $mentions);
         return true;
-//        return ProjectLog::create($data);
+        //        return ProjectLog::create($data);
     }
 
     /**
@@ -491,7 +496,7 @@ class Task extends CommonModel
                 $preTask->sort = $newSort;
                 $preTask->save();
             } else {
-//                小于安全值
+                //                小于安全值
                 $this->resetSort($preTask['stage_code'], $done);
                 $this->sort($preCode, $nextCode, $toStageCode);
             }
@@ -558,6 +563,7 @@ class Task extends CommonModel
         if (!$memberCode) {
             $memberCode = getCurrentMember()['code'];
         }
+        $organizationCode = getCurrentOrganizationCode();
         if ($page < 1) {
             $page = 1;
         }
@@ -570,15 +576,15 @@ class Task extends CommonModel
         }
         //我执行的
         if ($taskType == 1) {
-            $sql = "select *,t.id as id,t.name as name,t.code as code,t.create_time as create_time,t.end_time,t.begin_time from {$prefix}task as t join {$prefix}project as p on t.project_code = p.code where  t.deleted = 0 {$doneSql} and t.assign_to = '{$memberCode}' and p.deleted = 0 order by t.id desc";
+            $sql = "select *,t.id as id,t.name as name,t.code as code,t.create_time as create_time,t.end_time,t.begin_time from {$prefix}task as t join {$prefix}project as p on t.project_code = p.code where p.organization_code = '{$organizationCode}' and t.deleted = 0 {$doneSql} and t.assign_to = '{$memberCode}' and p.deleted = 0 order by t.id desc";
         }
         //我参与的
         if ($taskType == 2) {
-            $sql = "select *,t.id as id,t.name as name,t.code as code,t.create_time as create_time,t.end_time,t.begin_time from {$prefix}task as t join {$prefix}project as p on t.project_code = p.code left join {$prefix}task_member as tm on tm.task_code = t.code where  t.deleted = 0 {$doneSql} and tm.member_code = '{$memberCode}' and p.deleted = 0 order by t.id desc";
+            $sql = "select *,t.id as id,t.name as name,t.code as code,t.create_time as create_time,t.end_time,t.begin_time from {$prefix}task as t join {$prefix}project as p on t.project_code = p.code left join {$prefix}task_member as tm on tm.task_code = t.code where p.organization_code = '{$organizationCode}' and t.deleted = 0 {$doneSql} and tm.member_code = '{$memberCode}' and p.deleted = 0 order by t.id desc";
         }
         //我创建的
         if ($taskType == 3) {
-            $sql = "select *,t.id as id,t.name as name,t.code as code,t.create_time as create_time,t.end_time,t.begin_time from {$prefix}task as t join {$prefix}project as p on t.project_code = p.code where  t.deleted = 0 {$doneSql} and t.create_by = '{$memberCode}' and p.deleted = 0 order by t.id desc";
+            $sql = "select *,t.id as id,t.name as name,t.code as code,t.create_time as create_time,t.end_time,t.begin_time from {$prefix}task as t join {$prefix}project as p on t.project_code = p.code where p.organization_code = '{$organizationCode}' and t.deleted = 0 {$doneSql} and t.create_by = '{$memberCode}' and p.deleted = 0 order by t.id desc";
         }
         $total = Db::query($sql);
         $total = count($total);
@@ -676,7 +682,6 @@ class Task extends CommonModel
                         $count++;
                     }
                 }
-
             }
         }
         return $count;
@@ -933,6 +938,5 @@ class Task extends CommonModel
     {
         $data = ['memberCode' => $memberCode, 'taskCode' => $taskCode, 'remark' => $remark, 'type' => $type, 'content' => $content, 'isComment' => $isComment, 'toMemberCode' => $toMemberCode, 'fileCode' => $fileCode, 'data' => $data, 'tag' => $tag];
         Hook::listen($tag, $data);
-
     }
 }

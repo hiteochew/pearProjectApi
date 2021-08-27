@@ -17,6 +17,13 @@ use think\facade\Request;
  */
 class Node extends BasicApi
 {
+    public function __construct()
+    {
+        parent::__construct();
+        if(getCurrentMember()['id']!==1){
+            return $this->error('无权限');
+        }
+    }
 
     /**
      * 指定当前默认模型

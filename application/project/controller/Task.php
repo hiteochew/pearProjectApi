@@ -35,22 +35,42 @@ class Task extends BasicApi
     public function index()
     {
         $where = [];
-        $params = Request::only('stageCode,pcode,keyword,order,projectCode,deleted');
-        foreach (['stageCode', 'pcode', 'deleted', 'projectCode'] as $key) {
+        $params = Request::only('stageCode,pcode,keyword,order,projectCode,deleted,public,beginTime,endTime');
+        if (isset($params['public']) && $params['public'] == 'faq') {
+            $params['organization_code'] = Request::instance()->header('organizationCode');
+            if (!$params['organization_code']) {
+                $params['organization_code'] = getCurrentOrganizationCode();
+            }
+            $params['done'] = 1;
+            $params['status'] = 1;
+            $params['Task.deleted'] = 0;
+        }
+        foreach (['stageCode', 'pcode', 'deleted', 'projectCode', 'done', 'status', 'Task.deleted'] as $key) {
             if ($key == 'projectCode') {
                 (isset($params[$key]) && $params[$key] !== '') && $where[] = ['project_code', '=', $params[$key]];
                 continue;
             }
             (isset($params[$key]) && $params[$key] !== '') && $where[] = [$key, '=', $params[$key]];
         }
-        if (isset($params['keyword'])) {
-            $where[] = ['name', 'like', "%{$params['keyword']}%"];
+        if (isset($params['keyword']) && !empty($params['keyword'])) {
+            $where[] = ['Task.name', 'like', "%{$params['keyword']}%"];
+            $where['or'][] = ['Task.description', 'like', "%{$params['keyword']}%"];
+        }
+        if (isset($params['beginTime']) && isset($params['beginTime'])) {
+            $where[] = ['begin_time', 'between', [$params['beginTime'], $params['endTime']]];
+            $where[] = ['end_time', 'between', [$params['beginTime'], $params['endTime']]];
         }
         $order = 'sort asc,id asc';
         if (isset($params['order'])) {
             $order = $params['order'];
         }
-        $list = $this->model->_list($where, $order);
+        if (isset($params['public']) && $params['public'] == 'faq') {
+            $list = $this->model->_list($where, $order, null, false, [], ['haswhere' => ['key' => 'organization', 'where' => ['organization_code' => $params['organization_code']]], 'with' => ['organization' => function ($query) {
+                $query->field('code,name as project_name,organization_code');
+            }]]);
+        } else {
+            $list = $this->model->_list($where, $order);
+        }
         if ($list['list']) {
             foreach ($list['list'] as &$task) {
                 $task['executor'] = Member::where(['code' => $task['assign_to']])->field('name,avatar')->find();
@@ -307,7 +327,6 @@ class Task extends BasicApi
             $result = $this->model->edit($code, $data);
         } catch (Exception $e) {
             $this->error($e->getMessage(), $e->getCode());;
-
         }
         if ($result) {
             $this->success();
@@ -357,7 +376,6 @@ class Task extends BasicApi
             $result = $this->model->like($code, $data['like']);
         } catch (Exception $e) {
             $this->error($e->getMessage(), $e->getCode());;
-
         }
         if ($result) {
             $this->success();
@@ -423,7 +441,6 @@ class Task extends BasicApi
             $result = $this->model->star($code, $data['star']);
         } catch (Exception $e) {
             $this->error($e->getMessage(), $e->getCode());;
-
         }
         if ($result) {
             $this->success();

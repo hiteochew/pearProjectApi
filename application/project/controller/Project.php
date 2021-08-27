@@ -44,7 +44,7 @@ class Project extends BasicApi
      * @return void
      * @throws DbException
      */
-   /* public function index11()
+    /* public function index11()
     {
         $prefix = config('database.prefix');
         $type = Request::post('type');
@@ -120,14 +120,21 @@ class Project extends BasicApi
                 $archive = -1;
                 $collection = -1;
                 break;
+            case 'public':
+                $deleted = 0;
+                $archive = -1;
+                $collection = -1;
+                break;
             default:
                 $deleted = 0;
                 $archive = -1;
                 $collection = -1;
-
-
         }
-        $list = $this->model->getMemberProjects(getCurrentMember()['code'], getCurrentOrganizationCode(), $deleted, $archive, $collection, Request::post('page'), Request::post('pageSize'));
+        if ($selectBy === 'public') {
+            $list = $this->model->getMemberProjects('public', getCurrentOrganizationCode(), $deleted, $archive, $collection, Request::post('page'), Request::post('pageSize'));
+        } else {
+            $list = $this->model->getMemberProjects(getCurrentMember()['code'], getCurrentOrganizationCode(), $deleted, $archive, $collection, Request::post('page'), Request::post('pageSize'));
+        }
         if ($list['list']) {
             foreach ($list['list'] as $key => &$item) {
                 $item['owner_name'] = '-';
@@ -210,8 +217,6 @@ class Project extends BasicApi
             $taskOverduePercent = round($taskOverdueCount / $taskCount, 2) * 100;
         }
         $this->success('', compact('projectList', 'projectCount', 'projectSchedule', 'taskList', 'taskCount', 'taskOverdueCount', 'taskOverduePercent'));
-
-
     }
 
     /**
@@ -329,7 +334,6 @@ class Project extends BasicApi
             $result = $this->model->edit($code, $data);
         } catch (\Exception $e) {
             $this->error($e->getMessage(), $e->getCode());;
-
         }
         if ($result) {
             $this->success();
@@ -365,7 +369,7 @@ class Project extends BasicApi
             }
             $projectCodes = implode(',', $projectCodes);
             $sql = "select tl.remark as remark,tl.content as content,tl.is_comment as is_comment,tl.create_time as create_time,p.name as project_name,t.name as task_name,t.code as source_code,p.code as project_code,m.avatar as member_avatar,m.name as member_name from {$prefix}project_log as tl join {$prefix}task as t on tl.source_code = t.code join {$prefix}project as p on t.project_code = p.code join {$prefix}member as m on tl.member_code = m.code where tl.action_type = 'task' and p.code in ({$projectCodes}) and p.deleted = 0 order by tl.id desc limit 0,20";
-//        $sql = "select tl.remark as remark,tl.content as content,tl.is_comment as is_comment,tl.create_time as create_time,p.name as project_name,p.code as project_code,m.avatar as member_avatar,m.name as member_name from {$prefix}project_log as tl join {$prefix}project as p on tl.project_code = p.code join {$prefix}member as m on tl.member_code = m.code where p.code in ({$projectCodes}) and p.deleted = 0 order by tl.id desc limit 0,20";
+            //        $sql = "select tl.remark as remark,tl.content as content,tl.is_comment as is_comment,tl.create_time as create_time,p.name as project_name,p.code as project_code,m.avatar as member_avatar,m.name as member_name from {$prefix}project_log as tl join {$prefix}project as p on tl.project_code = p.code join {$prefix}member as m on tl.member_code = m.code where p.code in ({$projectCodes}) and p.deleted = 0 order by tl.id desc limit 0,20";
             $list = Db::query($sql);
         } else {
             $page = Request::param('page');
@@ -446,7 +450,7 @@ class Project extends BasicApi
             'expireToday' => 0,
             'doneOverdue' => 0,
         ];
-//        $taskList = \app\common\Model\Task::where(['project_code' => $projectCode, 'deleted' => 0])->field('id,assign_to,done,end_time,create_time,code')->hidden(['childCount,hasUnDone,parentDone,hasComment,hasSource,canRead'])->select()->toArray();
+        //        $taskList = \app\common\Model\Task::where(['project_code' => $projectCode, 'deleted' => 0])->field('id,assign_to,done,end_time,create_time,code')->hidden(['childCount,hasUnDone,parentDone,hasComment,hasSource,canRead'])->select()->toArray();
         $taskList = Db::name('task')->where(['project_code' => $projectCode, 'deleted' => 0])->field('id,assign_to,done,end_time,create_time,code')->select();
         $taskStats['total'] = count($taskList);
         if ($taskList) {
@@ -559,6 +563,4 @@ class Project extends BasicApi
         }
         $this->success('');
     }
-
-
 }

@@ -373,6 +373,26 @@ class FileService
     }
 
     /**
+     * 阿里云OSS删除文件
+     * @param string $filename
+     * @return array|null
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
+     */
+    public static function oss_del($filename)
+    {
+        try {
+            $endpoint = 'http://' . sysconf('storage_oss_domain');
+            $ossClient = new OssClient(sysconf('storage_oss_keyid'), sysconf('storage_oss_secret'), $endpoint, true);
+            $ossClient->deleteObject(sysconf('storage_oss_bucket'), $filename);
+            return ['file' => $filename, 'result' => '删除成功', 'key' => $filename];
+        } catch (OssException $err) {
+            Log::error('文件删除失败, ' . $err->getMessage());
+        }
+        return null;
+    }
+
+    /**
      * 下载文件到本地
      * @param string $url 文件URL地址
      * @param bool $isForce 是否强制重新下载文件

@@ -46,6 +46,10 @@ class Auth extends BasicApi
     public function apply()
     {
         $auth_id = Request::param('id', '0');
+        $s = $this->model->where('id',$auth_id)->field('organization_code')->find();
+        if(isset($s['organization_code']) && $s['organization_code'] != getCurrentOrganizationCode()){
+            return $this->error('无法编辑');
+        }
         $method = '_apply_' . strtolower(Request::param('action', '0'));
         if (method_exists($this, $method)) {
             return $this->$method($auth_id);

@@ -53,6 +53,7 @@ class Account extends BasicApi
             switch ($searchType) {
                 case 1:
                     $where[] = ['status', '=', 1];
+                    //$where[] = ['create_time', 'between', ["{$date()} 00:00:00", "{$end} 23:59:59"]];
                     break;
                 case 2:
                     $where[] = ['department_code', '=', ''];

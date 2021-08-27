@@ -36,7 +36,12 @@ class Project extends CommonModel
         $offset = ($page - 1) * $pageSize;
         $limit = $pageSize;
         $prefix = config('database.prefix');
-        $sql = "select *,p.id as id,p.name as name,p.code as code,p.create_time as create_time from {$prefix}project as p join {$prefix}project_member as pm on p.code = pm.project_code left join {$prefix}project_collection as pc on p.code = pc.project_code where pm.member_code = '{$memberCode}'  and p.organization_code = '$organizationCode'";
+        $sql = "select *,p.id as id,p.name as name,p.code as code,p.create_time as create_time from {$prefix}project as p join {$prefix}project_member as pm on p.code = pm.project_code left join {$prefix}project_collection as pc on p.code = pc.project_code where p.organization_code = '$organizationCode'";
+        if ($memberCode === 'public') {
+            $sql .= " and p.private = 0 ";
+        }else{
+            $sql .= " and pm.member_code = '{$memberCode}' ";
+        }
         if ($deleted != -1) {
             $sql .= " and p.deleted = {$deleted} ";
         }

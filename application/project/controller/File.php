@@ -31,14 +31,18 @@ class File extends BasicApi
         $orgCode = getCurrentOrganizationCode();
         $memberCode = getCurrentMember()['code'];
         $projectCode = Request::param('projectCode');
-        $deleted = Request::param('deleted', 0);
-        if (!$projectCode) {
-            $this->error("请选择项目");
+        if (!isset($projectCode)) {
+            $projectCode = '';
         }
+        $organizationCode = Request::param('organizationCode');
+        $deleted = Request::param('deleted', 0);
+        /* if (!$projectCode) {
+            $this->error("请选择项目");
+        } */
         $where = [];
-//        $where[] = ['organization_code', '=', $orgCode];
+        $where[] = ['organization_code', '=', $orgCode];
         $where[] = ['project_code', '=', $projectCode];
-//        $where[] = ['create_by', '=', $memberCode];
+        //        $where[] = ['create_by', '=', $memberCode];
         $where[] = ['deleted', '=', $deleted];
         $list = $this->model->_list($where);
         if ($list['list']) {
@@ -83,6 +87,9 @@ class File extends BasicApi
     public function uploadFiles()
     {
         $data = Request::post();
+        if (!isset($data['projectCode'])) {
+            $data['projectCode'] = '';
+        }
         $fileName = $data['identifier'];
         $orgFileName = $data['filename'];
         $chunkNumber = $data['chunkNumber'];
@@ -90,9 +97,9 @@ class File extends BasicApi
         $file = Request::file('file');
         $orgCode = getCurrentOrganizationCode();
         $memberCode = getCurrentMember()['code'];
-        $date = date('Ymd', time());
+        $date = date('Y/m', time());
         $ticket = date('YmdHis', time());
-        $path = config('upload.base_path') . config('upload.file_temp') . "/{$orgCode}/{$memberCode}/$date/";
+        $path = config('upload.base_path') . config('upload.file_temp') . "/{$orgCode}/" . ($data['projectCode'] ? 'user/' . $memberCode : 'public') . "/$date/";
         $saveName = $fileName . "-{$chunkNumber}";
         try {
             $uploadInfo = _uploadFile($file, $path, $saveName);
@@ -108,6 +115,7 @@ class File extends BasicApi
         $result = [];
         $type = empty($file_storage) ? sysconf('storage_type') : $file_storage;
         if ($chunkNumber == $totalChunks) {
+            set_time_limit(0);
             $fileList = [];
             $blob = '';
             for ($i = 1; $i <= $totalChunks; $i++) {
@@ -118,7 +126,7 @@ class File extends BasicApi
                 $blob .= file_get_contents($site_url);
                 $fileList[] = env('root_path') . $fileUrl;
             }
-            $path = config('upload.base_path') . config('upload.file') . "/{$orgCode}/{$memberCode}/$date/$ticket-$orgFileName";
+            $path = config('upload.base_path') . config('upload.file') . "/{$orgCode}/" . ($data['projectCode'] ? 'user/' . $memberCode : 'public') . "/$date/$ticket-$orgFileName";
             $result = FileService::$type($path, $blob);
             $fileData['size'] = $data['totalSize'];
             $fileData['path_name'] = $result['key'];
@@ -135,11 +143,15 @@ class File extends BasicApi
             if ($data['taskCode']) {
                 \app\common\Model\SourceLink::createSource('file', $fileResult['code'], 'task', $data['taskCode']);
             }
-            \app\common\Model\Project::projectHook(getCurrentMember()['code'],  $data['projectCode'], 'uploadFile','',0,'','',$fileResult['code'],['title' => $fileInfo['fullName'], 'url' => $fileResult['file_url']]);
+            \app\common\Model\File::fileHook(getCurrentMember()['code'],  $data['taskCode'], $data['projectCode'], 'uploadFile', '', 0, '', '', $fileResult['code'], $fileInfo);
         }
 
-        $project = \app\common\Model\Project::where(['code' => $data['projectCode']])->find();
-        $result['projectName'] = $project['name'];
+        if ($data['projectCode']) {
+            $project = \app\common\Model\Project::where(['code' => $data['projectCode']])->find();
+            $result['projectName'] = $project['name'];
+        } else {
+            $result['projectName'] = "";
+        }
         $this->success('', $result);
     }
 

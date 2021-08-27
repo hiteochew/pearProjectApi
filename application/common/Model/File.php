@@ -4,6 +4,7 @@ namespace app\common\Model;
 
 use function GuzzleHttp\Promise\task;
 use think\Db;
+use think\facade\Hook;
 
 /**
  * 文件
@@ -25,16 +26,18 @@ class File extends CommonModel
      */
     public static function createFile($projectCode, $data)
     {
-        $project = Project::where(['code' => $projectCode])->find();
-        if (!$project) {
-            throw new \Exception('该项目已失效', 1);
+        if ($projectCode) {
+            $project = Project::where(['code' => $projectCode])->find();
+            if (!$project) {
+                throw new \Exception('该项目已失效', 1);
+            }
         }
         $memberCode = getCurrentMember()['code'];
         $orgCode = getCurrentOrganizationCode();
         $fileData = [
             'code' => createUniqueCode('file'),
             'create_by' => $memberCode,
-            'project_code' => $projectCode,
+            'project_code' => $projectCode ? $projectCode : '',
             'organization_code' => $orgCode,
             'path_name' => isset($data['path_name']) ? $data['path_name'] : '',
             'title' => isset($data['title']) ? $data['title'] : '',
@@ -103,7 +106,9 @@ class File extends CommonModel
         try {
             self::where(['code' => $code])->delete();
             //todo 删除物理文件
+            self::_delfile($info['path_name']);
             Db::commit();
+            self::fileHook(getCurrentMember()['code'], $info['task_code'], $info['project_code'], 'deleteFile', '', 0, '', '', $code, $info);
         } catch (\Exception $e) {
             Db::rollback();
             throw new \Exception($e->getMessage());
@@ -116,4 +121,21 @@ class File extends CommonModel
         return "{$data['title']}.{$data['extension']}";
     }
 
+    /** 文件变动钩子
+     * @param $memberCode
+     * @param $sourceCode
+     * @param string $type
+     * @param string $toMemberCode
+     * @param int $isComment
+     * @param string $remark
+     * @param string $content
+     * @param string $fileCode
+     * @param array $data
+     * @param string $tag
+     */
+    public static function fileHook($memberCode, $sourceCode = '', $projectCode = '', $type = 'create', $toMemberCode = '', $isComment = 0, $remark = '', $content = '', $fileCode = '', $data = [], $tag = 'file')
+    {
+        $data = ['memberCode' => $memberCode, 'sourceCode' => $sourceCode, 'projectCode' => $projectCode, 'remark' => $remark, 'type' => $type, 'content' => $content, 'isComment' => $isComment, 'toMemberCode' => $toMemberCode, 'fileCode' => $fileCode, 'data' => $data, 'tag' => $tag];
+        Hook::listen($tag, $data);
+    }
 }
