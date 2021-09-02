@@ -54,7 +54,7 @@ class Task extends BasicApi
         }
         if (isset($params['keyword']) && !empty($params['keyword'])) {
             $where[] = ['Task.name', 'like', "%{$params['keyword']}%"];
-            $where['or'][] = ['Task.description', 'like', "%{$params['keyword']}%"];
+            //$where['or'][] = ['Task.description', 'like', "%{$params['keyword']}%"];
         }
         if (isset($params['beginTime']) && isset($params['beginTime'])) {
             $where[] = ['begin_time', 'between', [$params['beginTime'], $params['endTime']]];
